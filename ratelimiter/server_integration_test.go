@@ -7,41 +7,176 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
-	REDISPORT int = 6379
+	REDISPORT int = 22222
 )
 
-func TestPing(t *testing.T) {
-		config := RateLimiterConfiguration{
-		RedisAddress:             "127.0.0.1:",
-		RedisUsername:            "",
-		RedisPassword:            "",
+type TestContainers struct {
+    RedisContainer    *redis.RedisContainer
+	TestRateLimiter		*RatelimiterHandler
+}
+
+// Global test containers instance for sharing across tests
+var testContainers *TestContainers
+
+// Cleanup terminates all test containers and closes connections
+func (tc *TestContainers) Cleanup(ctx context.Context) error {
+    // Terminate the Redis container
+    if tc.RedisContainer != nil {
+        if err := tc.RedisContainer.Terminate(ctx); err != nil {
+            return fmt.Errorf("failed to terminate redis container: %w", err)
+        }
+    }
+
+    return nil
+}
+
+// ResetRedis flushes all data from Redis between tests
+// func (tc *TestContainers) ResetRedis(ctx context.Context) error {
+//     return tc.RedisClient.FlushAll(ctx).Err()
+// }
+
+/// https://oneuptime.com/blog/post/2026-01-07-go-integration-tests-testcontainers/view
+func TestMain(m *testing.M) {
+    // Set up the test containers
+    ctx := context.Background()
+    var err error
+    testContainers, err = SetupContainersAndRatelimiter(ctx)
+    if err != nil {
+        fmt.Printf("Failed to set up containers: %v\n", err)
+        os.Exit(1)
+    }
+
+    // Run all the tests
+    code := m.Run()
+
+    // Clean up the containers after tests complete
+    if err := testContainers.Cleanup(ctx); err != nil {
+        fmt.Printf("Failed to clean up containers: %v\n", err)
+    }
+
+    os.Exit(code)
+}
+
+func SetupContainersAndRatelimiter(ctx context.Context) (*TestContainers, error) {
+	tc := &TestContainers{}
+
+	redisContainer, err := redis.Run(ctx, "redis:7-alpine",
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("Ready to accept connections").
+				WithStartupTimeout(30*time.Second),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start redis container: %w", err)
+	}
+	tc.RedisContainer = redisContainer
+
+	// "host:mappedPort", e.g. 127.0.0.1:55012. No port argument needed.
+	endpoint, err := redisContainer.Endpoint(ctx, "")
+	if err != nil {
+		_ = tc.Cleanup(ctx)
+		return nil, fmt.Errorf("redis endpoint: %w", err)
+	}
+
+	config := RateLimiterConfiguration{
+		RedisAddress:             endpoint,
 		Period:                   time.Minute,
 		Limit:                    2,
-		AllowStartupWithoutRedis: true,
+		AllowStartupWithoutRedis: false,
 		Port:                     12600,
 		Mode:                     "dev",
 	}
 
-	r, err := helperInitForTestContainers(t, config)
-
+	r, err := NewRatelimiter(config)
 	if err != nil {
-		t.Error(err)
-		return
+		_ = tc.Cleanup(ctx) // don't leak the container on failure
+		return nil, fmt.Errorf("failed to create Ratelimiter: %w", err)
 	}
+	tc.TestRateLimiter = r
+	return tc, nil
+}
 
+// func SetupContainersAndRatelimiter(ctx context.Context) (*TestContainers, error) {
+// 	tc := &TestContainers{}
+
+// 	// code from: https://golang.testcontainers.org/quickstart/
+// 	portThing := fmt.Sprintf("%d/tcp", REDISPORT)
+// 	fmt.Println("yee 1.", portThing)
+//     redisContainer, err := redis.Run(ctx,
+//         "redis:7-alpine",
+//         // Wait for Redis to be ready
+//         testcontainers.WithWaitStrategy(
+//             wait.ForLog("Ready to accept connections").
+//                 WithStartupTimeout(30*time.Second),
+//         ),
+//     )
+
+// 	if err != nil {
+//         return nil, fmt.Errorf("failed to start redis container: %w", err)
+//     }
+
+//     tc.RedisContainer = redisContainer
+
+// 	// "host:mappedPort", e.g. 127.0.0.1:55012. No port argument needed.
+// 	endpoint, err := redisContainer.Endpoint(ctx, "")
+// 	if err != nil {
+// 		_ = tc.Cleanup(ctx)
+// 		return nil, fmt.Errorf("redis endpoint: %w", err)
+// 	}
+
+// 	fmt.Println("endpoint", endpoint)
+
+
+// 	config := RateLimiterConfiguration{
+// 		// RedisAddress:             "127.0.0.1",
+// 		RedisAddress:             endpoint,
+// 		// RedisUsername:            "",
+// 		// RedisPassword:            "",
+// 		Period:                   time.Minute,
+// 		Limit:                    2,
+// 		AllowStartupWithoutRedis: false,
+// 		Port:                     12600,
+// 		Mode:                     "dev",
+// 	}
+
+// 	// redisEndpoint, err := tc.RedisContainer.Endpoint(ctx, portThing)
+
+// 	// tt := strings.LastIndex(redisEndpoint, ":")
+
+// 	// config.RedisAddress = config.RedisAddress + ":" + redisEndpoint[tt+1:]
+
+// 	fmt.Println("redis address locally:", config.RedisAddress)
+
+
+// 	r, err := NewRatelimiter(config)
+
+// 	if err != nil {
+// 		_ = tc.Cleanup(ctx) // don't leak the container on failure
+// 		return nil, fmt.Errorf("Failed to create Ratelimiter: %w", err)
+// 	}
+
+// 	tc.TestRateLimiter = r
+
+//     return tc, nil
+// }
+
+
+func TestPing(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/v1/ping", nil)
-	r.router.ServeHTTP(w, req)
+	testContainers.TestRateLimiter.router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -55,27 +190,9 @@ func TestPing(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
-	config := RateLimiterConfiguration{
-		RedisAddress:             "127.0.0.1:",
-		RedisUsername:            "",
-		RedisPassword:            "",
-		Period:                   time.Minute,
-		Limit:                    2,
-		AllowStartupWithoutRedis: true,
-		Port:                     12600,
-		Mode:                     "dev",
-	}
-
-	r, err := helperInitForTestContainers(t, config)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
-	r.router.ServeHTTP(w, req)
+	testContainers.TestRateLimiter.router.ServeHTTP(w, req)
 
 	var body map[string]any
 	json.Unmarshal(w.Body.Bytes(), &body)
@@ -95,24 +212,6 @@ func TestHealth(t *testing.T) {
 
 // should be ok, does not reach/use redis related code at any point
 func TestRateLimit_MissingFieldsInPayloadJson(t *testing.T) {
-	config := RateLimiterConfiguration{
-		RedisAddress:             "127.0.0.1:",
-		RedisUsername:            "",
-		RedisPassword:            "",
-		Period:                   time.Minute,
-		Limit:                    2,
-		AllowStartupWithoutRedis: false,
-		Port:                     12600,
-		Mode:                     "dev",
-	}
-
-	r, err := helperInitForTestContainers(t, config)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
 	/*
 		len() 		 = 						 5
 		"Passes" 	 = interface {}(bool) 	 false
@@ -128,7 +227,7 @@ func TestRateLimit_MissingFieldsInPayloadJson(t *testing.T) {
 	bytes.NewBufferString(`{"ClientId": "user1" }`))
 	req.Header.Set("Content-Type", "application/json")
 
-	r.router.ServeHTTP(w, req)
+	testContainers.TestRateLimiter.router.ServeHTTP(w, req)
 	json.Unmarshal(w.Body.Bytes(), &body1)
 
 	if w.Code != http.StatusBadRequest {
@@ -142,124 +241,72 @@ func TestRateLimit_MissingFieldsInPayloadJson(t *testing.T) {
 	}
 }
 
+type limitResp struct {
+	Passes    bool
+	HitCount  int
+	Remaining int
+}
+
+func postJSON(t *testing.T, h http.Handler, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	return w
+}
+
 func TestRateLimiter_LimitExceeded(t *testing.T) {
-	config := RateLimiterConfiguration{
-		RedisAddress:             "127.0.0.1:",
-		RedisUsername:            "",
-		RedisPassword:            "",
-		Period:                   time.Minute,
-		Limit:                    2,
-		AllowStartupWithoutRedis: false,
-		Port:                     12600,
-		Mode:                     "dev",
+	payload := fmt.Sprintf(
+		`{"ClientId": %q, "RulesId": "content name", "Algorithm": "fixed_window"}`, t.Name())
+
+	steps := []limitResp{
+		{Passes: true, HitCount: 1, Remaining: 1},
+		{Passes: true, HitCount: 2, Remaining: 0},
+		{Passes: false, HitCount: 3, Remaining: 0},
 	}
+	for i, want := range steps {
+		w := postJSON(t, testContainers.TestRateLimiter.router, "/v1/ratelimit", payload)
 
-	r, err := helperInitForTestContainers(t, config)
-
-	if err != nil {
-		t.Error(err)
-		return
+		var got limitResp
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+		require.Equal(t, want, got, "request %d", i+1)
 	}
-
-	/*
-		len() 		 = 						 5
-		"Passes" 	 = interface {}(bool) 	 false
-		"HitCount" 	 = interface {}(float64) 3
-		"FirstHit" 	 = interface {}(float64) 1787733908
-		"Remaining"	 = interface {}(float64) 0
-		"ResetsUnix" = interface {}(float64) 0
-	*/
-
-	var body1 map[string]any
-	w1 := httptest.NewRecorder()
-	req1 := httptest.NewRequest(http.MethodPost, "/v1/ratelimit",
-	bytes.NewBufferString(`{"ClientId": "user1", "RulesId": "content name", "Algorithm": "fixed_window" }`))
-	req1.Header.Set("Content-Type", "application/json")
-	
-	var body2 map[string]any
-	w2 := httptest.NewRecorder()
-	req2 := httptest.NewRequest(http.MethodPost, "/v1/ratelimit",
-	bytes.NewBufferString(`{"ClientId": "user1", "RulesId": "content name", "Algorithm": "fixed_window" }`))
-	req2.Header.Set("Content-Type", "application/json")
-	
-	var body3 map[string]any
-	w3 := httptest.NewRecorder()
-	req3 := httptest.NewRequest(http.MethodPost, "/v1/ratelimit",
-	bytes.NewBufferString(`{"ClientId": "user1", "RulesId": "content name", "Algorithm": "fixed_window" }`))
-	req3.Header.Set("Content-Type", "application/json")
-
-	r.router.ServeHTTP(w1, req1)
-	json.Unmarshal(w1.Body.Bytes(), &body1)
-
-	if v, ok := body1["Passes"]; !ok || v != true {
-		t.Error("expected 'Passes' = true in response")
-	}
-	
-	r.router.ServeHTTP(w2, req2)
-	json.Unmarshal(w2.Body.Bytes(), &body2)
-
-	if v, ok := body2["Passes"]; !ok || v != false {
-		t.Error("expected 'Passes' = false in response")
-	}
-
-	r.router.ServeHTTP(w3, req3)
-	json.Unmarshal(w3.Body.Bytes(), &body3)
-
-	if v, ok := body3["Passes"]; !ok || v != false {
-		t.Error("expected 'Passes' = false in response")
-	}
-
-	if v, ok := body3["HitCount"]; !ok || v != 3 {
-		t.Error("expected 'HitCount' = 3 in response")
-	}
-
-	if v, ok := body3["Remaining"]; !ok || v != 0 {
-		t.Error("expected 'Remaining' = 0 in response")
-	}
-
 }
 
+/// DEAD CODE FOR NOW
+// func helperInitForTestContainers(t *testing.T, config RateLimiterConfiguration) *RatelimiterHandler {
+// 	// code from: https://golang.testcontainers.org/quickstart/
+// 	ctx := context.Background()
+// 	portThing := fmt.Sprintf("%d/tcp", REDISPORT)
+// 	fmt.Println("yee 1.", portThing)
+// 	redisC, err := testcontainers.Run(
+// 		ctx, "redis:8-alpine",
+// 		testcontainers.WithExposedPorts(portThing),
+// 		testcontainers.WithWaitStrategy(
+// 			wait.ForListeningPort(portThing),
+// 			wait.ForLog("Ready to accept connections"),
+// 		),
+// 	)
+// 	fmt.Println("yee 2.")
+// 	testcontainers.CleanupContainer(t, redisC)
+// 	require.NoError(t, err)
 
-func helperInitForTestContainers(t *testing.T, config RateLimiterConfiguration) (*RatelimiterHandler, error) {
-	// code from: https://golang.testcontainers.org/quickstart/
-	ctx := context.Background()
-	redisC, err := testcontainers.Run(
-		ctx, "redis:latest",
-		testcontainers.WithExposedPorts(fmt.Sprintf("%d/tcp", REDISPORT)),
-		testcontainers.WithWaitStrategy(
-			wait.ForListeningPort(fmt.Sprintf("%d/tcp", REDISPORT)),
-			wait.ForLog("Ready to accept connections"),
-		),
-	)
-	testcontainers.CleanupContainer(t, redisC)
-	require.NoError(t, err)
+// 	redisEndpoint, err := redisC.Endpoint(ctx, portThing)
+// 	require.NoError(t, err)
 
-	redisEndpoint, err := redisC.Endpoint(ctx, fmt.Sprintf("%d/tcp", REDISPORT))
-	require.NoError(t, err)
+// 	tt := strings.LastIndex(redisEndpoint, ":")
 
-	tt := strings.LastIndex(redisEndpoint, ":")
+// 	config.RedisAddress = config.RedisAddress + ":" + redisEndpoint[tt+1:]
 
-	config.RedisAddress = config.RedisAddress + redisEndpoint[tt+1:]
+// 	r, err := NewRatelimiter(config)
 
-	// config := RateLimiterConfiguration{
-	// 	RedisAddress:             "127.0.0.1:" + redisEndpoint[tt+1:],
-	// 	RedisUsername:            "",
-	// 	RedisPassword:            "",
-	// 	Period:                   time.Minute,
-	// 	Limit:                    2,
-	// 	AllowStartupWithoutRedis: false,
-	// 	Port:                     12600,
-	// 	Mode:                     "dev",
-	// }
+// 	if err != nil {
+// 		t.Error("error in myInit()")
+// 		return nil
+// 	}
 
-	r, err := NewRatelimiter(config)
-
-	if err != nil {
-		t.Error("error in myInit()")
-		return nil, err
-	}
-
-	return r, nil
-}
+// 	return r
+// }
 
 

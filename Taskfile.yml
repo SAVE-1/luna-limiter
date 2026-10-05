@@ -30,9 +30,13 @@ tasks:
     cmds:
       - ./bin/{{.EXENAME}} help
 
-  test:
+  test-all:
     cmds:
-      - go test ./...
+      - go test -tags=all ./...
+  
+  test-integration:
+    cmds:
+      - go test --tags=integration ./...
 
 
 # UTILITY

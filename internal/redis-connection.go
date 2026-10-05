@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -143,27 +144,9 @@ func ratelimitAlgorithmFactory(algo string) *redis.Script {
 
 var tokenBucket = redis.NewScript(ScriptFixedWindow)
 
-// returns the byte count, or the cost, of internal.RedisEntry -struct
-func (h *RedisConnection) GetRedisEntryCostFunction() func(value RedisEntry) int64 {
-	return func(value RedisEntry) int64 {
-		/*
-			a more futureproof version would be
-			return int64(unsafe.Sizeof(value))
-
-			j := internal.RedisEntry{
-				HitCount: 1,
-				FirstHit: 1,
-			}
-
-			fmt.Println(int64(unsafe.Sizeof(j))) // == 24
-
-			so along with the padding, it should be:
-			8 + 8 + 1 + 7 = 24
-
-			return 24 is a hotpath optimization, because the size of the struct is well known.
-		*/
-		return 24
-	}
+const entryCost = int64(unsafe.Sizeof(RedisEntry{}))
+func (h *RedisConnection) GetRedisEntryCostFunction() func(RedisEntry) int64 {
+    return func(RedisEntry) int64 { return entryCost }
 }
 
 func (h *RedisConnection) HIncrBy(ctx context.Context, key string, field string, count int64) error {
