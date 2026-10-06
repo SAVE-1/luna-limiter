@@ -6,7 +6,7 @@ vars:
   EXENAME: distributed-rate-limiter.exe
   REDIS_ADDR: 127.0.0.1:6379
   REDIS_USER: default
-  REDIS_PASS: mypassword
+  REDIS_PASS: redis123
   PERIOD: 60
   REQ_LIMIT: 2
   REDIS: false
