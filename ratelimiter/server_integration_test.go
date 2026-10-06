@@ -23,23 +23,21 @@ const (
 )
 
 type TestContainers struct {
-    RedisContainer    *redis.RedisContainer
-	TestRateLimiter		*RatelimiterHandler
+	RedisContainer  *redis.RedisContainer
+	TestRateLimiter *RatelimiterHandler
 }
 
-// Global test containers instance for sharing across tests
 var testContainers *TestContainers
 
-// Cleanup terminates all test containers and closes connections
 func (tc *TestContainers) Cleanup(ctx context.Context) error {
-    // Terminate the Redis container
-    if tc.RedisContainer != nil {
-        if err := tc.RedisContainer.Terminate(ctx); err != nil {
-            return fmt.Errorf("failed to terminate redis container: %w", err)
-        }
-    }
+	// Terminate the Redis container
+	if tc.RedisContainer != nil {
+		if err := tc.RedisContainer.Terminate(ctx); err != nil {
+			return fmt.Errorf("failed to terminate redis container: %w", err)
+		}
+	}
 
-    return nil
+	return nil
 }
 
 // ResetRedis flushes all data from Redis between tests
@@ -49,24 +47,24 @@ func (tc *TestContainers) Cleanup(ctx context.Context) error {
 
 /// https://oneuptime.com/blog/post/2026-01-07-go-integration-tests-testcontainers/view
 func TestMain(m *testing.M) {
-    // Set up the test containers
-    ctx := context.Background()
-    var err error
-    testContainers, err = SetupContainersAndRatelimiter(ctx)
-    if err != nil {
-        fmt.Printf("Failed to set up containers: %v\n", err)
-        os.Exit(1)
-    }
+	// Set up the test containers
+	ctx := context.Background()
+	var err error
+	testContainers, err = SetupContainersAndRatelimiter(ctx)
+	if err != nil {
+		fmt.Printf("Failed to set up containers: %v\n", err)
+		os.Exit(1)
+	}
 
-    // Run all the tests
-    code := m.Run()
+	// Run all the tests
+	code := m.Run()
 
-    // Clean up the containers after tests complete
-    if err := testContainers.Cleanup(ctx); err != nil {
-        fmt.Printf("Failed to clean up containers: %v\n", err)
-    }
+	// Clean up the containers after tests complete
+	if err := testContainers.Cleanup(ctx); err != nil {
+		fmt.Printf("Failed to clean up containers: %v\n", err)
+	}
 
-    os.Exit(code)
+	os.Exit(code)
 }
 
 func SetupContainersAndRatelimiter(ctx context.Context) (*TestContainers, error) {
@@ -108,70 +106,19 @@ func SetupContainersAndRatelimiter(ctx context.Context) (*TestContainers, error)
 	return tc, nil
 }
 
-// func SetupContainersAndRatelimiter(ctx context.Context) (*TestContainers, error) {
-// 	tc := &TestContainers{}
-
-// 	// code from: https://golang.testcontainers.org/quickstart/
-// 	portThing := fmt.Sprintf("%d/tcp", REDISPORT)
-// 	fmt.Println("yee 1.", portThing)
-//     redisContainer, err := redis.Run(ctx,
-//         "redis:7-alpine",
-//         // Wait for Redis to be ready
-//         testcontainers.WithWaitStrategy(
-//             wait.ForLog("Ready to accept connections").
-//                 WithStartupTimeout(30*time.Second),
-//         ),
-//     )
-
-// 	if err != nil {
-//         return nil, fmt.Errorf("failed to start redis container: %w", err)
-//     }
-
-//     tc.RedisContainer = redisContainer
-
-// 	// "host:mappedPort", e.g. 127.0.0.1:55012. No port argument needed.
-// 	endpoint, err := redisContainer.Endpoint(ctx, "")
-// 	if err != nil {
-// 		_ = tc.Cleanup(ctx)
-// 		return nil, fmt.Errorf("redis endpoint: %w", err)
-// 	}
-
-// 	fmt.Println("endpoint", endpoint)
-
-
-// 	config := RateLimiterConfiguration{
-// 		// RedisAddress:             "127.0.0.1",
-// 		RedisAddress:             endpoint,
-// 		// RedisUsername:            "",
-// 		// RedisPassword:            "",
-// 		Period:                   time.Minute,
-// 		Limit:                    2,
-// 		AllowStartupWithoutRedis: false,
-// 		Port:                     12600,
-// 		Mode:                     "dev",
-// 	}
-
-// 	// redisEndpoint, err := tc.RedisContainer.Endpoint(ctx, portThing)
-
-// 	// tt := strings.LastIndex(redisEndpoint, ":")
-
-// 	// config.RedisAddress = config.RedisAddress + ":" + redisEndpoint[tt+1:]
-
-// 	fmt.Println("redis address locally:", config.RedisAddress)
-
-
-// 	r, err := NewRatelimiter(config)
-
-// 	if err != nil {
-// 		_ = tc.Cleanup(ctx) // don't leak the container on failure
-// 		return nil, fmt.Errorf("Failed to create Ratelimiter: %w", err)
-// 	}
-
-// 	tc.TestRateLimiter = r
-
-//     return tc, nil
-// }
-
+func TestTest(t *testing.T) {
+	ctx := context.Background()
+	redisC, err := testcontainers.Run(
+		ctx, "redis:latest",
+		testcontainers.WithExposedPorts("6379/tcp"),
+		testcontainers.WithWaitStrategy(
+			wait.ForListeningPort("6379/tcp"),
+			wait.ForLog("Ready to accept connections"),
+		),
+	)
+	testcontainers.CleanupContainer(t, redisC)
+	require.NoError(t, err)
+}
 
 func TestPing(t *testing.T) {
 	w := httptest.NewRecorder()
@@ -209,7 +156,6 @@ func TestHealth(t *testing.T) {
 	}
 }
 
-
 // should be ok, does not reach/use redis related code at any point
 func TestRateLimit_MissingFieldsInPayloadJson(t *testing.T) {
 	/*
@@ -224,7 +170,7 @@ func TestRateLimit_MissingFieldsInPayloadJson(t *testing.T) {
 	var body1 map[string]any
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/ratelimit",
-	bytes.NewBufferString(`{"ClientId": "user1" }`))
+		bytes.NewBufferString(`{"ClientId": "user1" }`))
 	req.Header.Set("Content-Type", "application/json")
 
 	testContainers.TestRateLimiter.router.ServeHTTP(w, req)
@@ -308,5 +254,3 @@ func TestRateLimiter_LimitExceeded(t *testing.T) {
 
 // 	return r
 // }
-
-
