@@ -1,7 +1,7 @@
 # What is this project
-A Go-based distributed rate limiter implemented as a microservice with Redis as a shared state backend, focusing on testable design, scalability and performance.
+A Go-based distributed rate limiter implemented as a microservice with Redis as a shared state holder
 
-The project is intentionally scoped as a learning exercise rather than a production-ready solution.
+The project is intentionally scoped as a learning exercise rather than a production-ready solution
 
 # Motivation
 Rate limiting is a common backend concern used to protect services, enforce fair usage, and improve overall system reliability.
@@ -13,7 +13,7 @@ This project was built to better understand:
 
 The implementation was inspired by backend engineering talks and real-world use cases discussed in industry presentations.
 
-# High-Level Design
+# High-level design
 - Language: Go
 - Architecture: Standalone microservice
 - State management: Redis (shared backend)
@@ -43,13 +43,14 @@ Redis is used to coordinate rate-limit state across requests, keeping the servic
 - Production-grade observability
 - Security hardening
 
-These are intentionally left out to keep the project focused and manageable.
+These are intentionally left out to keep the project focused and manageable
 
 # Running the Project
 ## Prerequisites
 - Go, at least version 1.24.5
 - Redis
 - Docker (optional)
+	- IMPORTANT: As of 06-10-2026, at least my instance of `Windows 11 Pro (Version 10.0.26200 Build 26200)` requires `%USERPROFILE%\.testcontainers.properties` to be as `ryuk.disabled=true`, because Ryuk (the testcontainers reaper-sidecar) for some weird reason stopped working when Windows updated. I attempted to fix the issue, but nothing else seems to do the job
 - k6 (for load testing)
 
 ## Nice to have
@@ -57,11 +58,12 @@ These are intentionally left out to keep the project focused and manageable.
 - HTTPYac extension in vscode
 
 # Local Run (example)
-- Start Redis locally
-- Run the service
+- Fill in .env file (needs Redis password, there is an .example.env-file at root)
+- Start Redis locally with `docker compose up -d`
+- Run the service with `task run`
 	- If Task is installed, the server can be run with "task run" in cli
 - Send HTTP requests to the rate-limited endpoint
-	- IF HTTPYac is installed, there is a .http file containing messages in the project root
+	- There is a .http file in root, I'm using HTTPYac
 
 # Performance
 ## Load Testing, best case
@@ -93,9 +95,9 @@ Running Redis and the service on a single node minimizes network overhead and hi
 The results helped identify concurrency limits and informed how the design would need to evolve for multi-node deployments (e.g. sharding, local caching, or alternative coordination strategies).
 
 # Design Decisions & Trade-offs
-- Redis was chosen for simplicity and atomic operations, at the cost of added latency and a shared dependency.
-- Lua scripts reduce round-trips but increase coupling to Redis.
-- The service is stateless by design, simplifying horizontal scaling but shifting consistency concerns to Redis.
+- Redis was chosen for simplicity and atomic operations, at the cost of added latency and a shared dependency
+- Lua scripts reduce round-trips but increase coupling to Redis
+- The service is stateless by design, simplifying horizontal scaling but shifting consistency concerns to Redis
 
 # How to run
 Either with
@@ -116,7 +118,7 @@ This project is intended for learning and experimentation and does not aim to me
     docker run -d --name rate-limiter-redis -p 6379:6379 -p 8001:8001 -e REDIS_ARGS="--requirepass mypassword" redis/redis-stack:latest
 ```
 
-## Management console URL
+## Redis Management console URL
 ```
     http://localhost:8001
 ```
@@ -128,16 +130,24 @@ This project is intended for learning and experimentation and does not aim to me
 	"ClientId": Identifier used for rate limiting (e.g. API key, user ID, or IP address). The value is currently treated as an opaque string.
 	"RulesId": to be implemented
 }
+
+an example: 
+{
+    "ClientId": "123-456-789",
+    "RulesId": "content name",
+    "Algorithm": "fixed_window"
+}
+
 ```
 
 ### What the rate limiter returns to client
 ```
 {
-	"passes":     bool, did the request pass,
-	"reset_unix": 64-bit integer, when will the users request limit reset,
-	"reset_iso":  string, reset_unix as a string in RFC3339-format,
-	"limit":      64-bit integer, the servers request limit,
-	"remaining":  64-bit integer, how many requests are remaining
+	"Passes":     Bool, did the request pass,
+	"ResetsUnix": 64-bit integer, when will the users request limit reset,
+	"HitCount":   How many hit has this ID had so far,
+	"Remaining":  64-bit integer, how many requests are remaining
+	"FirstHit":   64-bit integer unix timestamp, when the service was first hit with this ID
 }
 ```
 
