@@ -302,15 +302,10 @@ func (h *RatelimiterHandler) isRequestAllowed(c *gin.Context) {
 
 			h.ristrettoCache.SetWithTTL(requestUserHash, entry, 0, resets)
 			h.ristrettoCache.Wait()
+			
 			// needs headers
 			c.Writer.Header().Set("Content-Type", "application/json")
-			var hitcount int64 = 0
-
-			if (h.Config.Limit - entry.HitCount) > 0 {
-				hitcount = h.Config.Limit - entry.HitCount
-			}
-
-			c.Writer.Header().Set("RateLimit-Remaining", strconv.FormatInt(hitcount, 10))
+			c.Writer.Header().Set("RateLimit-Remaining", "0")
 			c.Writer.Header().Set("RateLimit-Reset", strconv.FormatInt(secondsUntilRatelimitReset(entry.FirstHit, h.Config.Period), 10))
 			c.Writer.Header().Set("RateLimit-Limit", strconv.FormatInt(h.Config.Limit, 10))
 			c.JSON(http.StatusTooManyRequests, gin.H{
@@ -318,7 +313,7 @@ func (h *RatelimiterHandler) isRequestAllowed(c *gin.Context) {
 				"HitCount":   entry.HitCount,
 				"FirstHit":   entry.FirstHit,
 				"Remaining":  0,
-				"ResetsUnix": resets.Seconds(),
+				"ResetsUnix": time.Now().Add(resets).Unix(),
 			})
 			h.Logger.Info("entity found in cache", zap.String("entity", entry.String()))
 			return
