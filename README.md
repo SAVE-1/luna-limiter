@@ -1,5 +1,5 @@
 # What is this project
-A Go-based distributed rate limiter implemented as a microservice with Redis as a shared state holder
+A Go-based rate limiter implemented as a microservice with Redis as a shared state holder, with the goal of turning it into a distributed rate limiter
 
 The project is intentionally scoped as a learning exercise rather than a production-ready solution
 
