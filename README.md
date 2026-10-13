@@ -1,13 +1,12 @@
 # Luna limiter
-A Go-based rate limiter implemented as a microservice with Redis as a shared state holder, with the goal of turning it into a distributed rate limiter
+> A Go-based rate limiter implemented as a microservice with Redis as a shared state holder, with the goal of turning it into a distributed rate limiter
 
-The project is intentionally scoped as a learning exercise rather than a production-ready solution
+> **Status:** a learning project, not production-ready.
+
+`Go` · `Redis` · `Lua` · `k6` · `Docker`
 
 # What is a rate limiter?
 Rate limiting is a common backend concern used to protect services, enforce fair usage, and improve overall system reliability.
-
-# Technologies
-`go`, `redis`, `rate-limiter`, `lua`, `k6`, `docker`
 
 # Motivation
 This project was built to better understand:
