@@ -58,25 +58,25 @@ func main() {
 				Name:    "redisaddr",
 				Value:   "",
 				Usage:   "redis ip address",
-				Sources: cli.EnvVars("REDIS_ADDR"),
+				Sources: cli.EnvVars("LUNA_REDIS_ADDR"),
 			},
 			&cli.StringFlag{
 				Name:    "redisuser",
 				Value:   "",
 				Usage:   "redis user name",
-				Sources: cli.EnvVars("REDIS_USER"),
+				Sources: cli.EnvVars("LUNA_REDIS_USER"),
 			},
 			&cli.StringFlag{
 				Name:    "redispassword",
 				Value:   "",
 				Usage:   "redis user password",
-				Sources: cli.EnvVars("REDIS_PASSWORD"),
+				Sources: cli.EnvVars("LUNA_REDIS_PASSWORD"),
 			},
 			&cli.IntFlag{
 				Name:    "period",
 				Value:   60,
 				Usage:   "user request reset period",
-				Sources: cli.EnvVars("PERIOD"),
+				Sources: cli.EnvVars("LUNA_PERIOD"),
 				Validator: func(t int) error {
 					if t < 0 {
 						return fmt.Errorf("Must be positive")
@@ -87,7 +87,7 @@ func main() {
 				Name:    "reqlimit",
 				Value:   2,
 				Usage:   "user request limit",
-				Sources: cli.EnvVars("REQ_LIMIT"),
+				Sources: cli.EnvVars("LUNA_REQ_LIMIT"),
 				Validator: func(t int) error {
 					if t < 0 {
 						return fmt.Errorf("Must be positive")
@@ -97,8 +97,8 @@ func main() {
 			&cli.BoolFlag{
 				Name:    "noredisallowed",
 				Value:   false,
-				Usage:   "is no redis allowed",
-				Sources: cli.EnvVars("NO_REDIS_ALLOWED"),
+				Usage:   "is startup without Redis allowed",
+				Sources: cli.EnvVars("LUNA_NO_REDIS_ALLOWED"),
 			},
 			&cli.BoolFlag{
 				Name:    "version",
@@ -107,27 +107,27 @@ func main() {
 				Usage:   "server version",
 			},
 			&cli.StringFlag{
-				Name:    "default_limit_algorithm",
+				Name:    "algorithm",
 				Value:   "fixed_window",
 				Usage:   "what the default algorithm is used",
-				Sources: cli.EnvVars("DEFAULT_LIMIT_ALGORITHM"),
+				Sources: cli.EnvVars("LUNA_ALGORITHM"),
 				Validator: func(t string) error {
 					if internal.VerifyAlgorithm(t) {
 						return nil
 					}
-					return fmt.Errorf("Must be positive")
+					return fmt.Errorf("Wrong algorithm in environment variables")
 				}},
 			&cli.IntFlag{
 				Name:    "port",
 				Value:   12600,
 				Usage:   "what port should be used",
-				Sources: cli.EnvVars("SERVER_PORT"),
+				Sources: cli.EnvVars("LUNA_PORT", "LUNA_RATELIMITER_PORT"),
 			},
 			&cli.StringFlag{
 				Name:    "mode",
 				Value:   "dev",
 				Usage:   "what release mode should be used for logging",
-				Sources: cli.EnvVars("RELEASE_MODE"),
+				Sources: cli.EnvVars("LUNA_RELEASE_MODE"),
 				Validator: func(m string) error {
 					if m != ratelimiter.Development && m != ratelimiter.Production {
 						return fmt.Errorf("mode must be %q or %q", ratelimiter.Development, ratelimiter.Production)
@@ -137,7 +137,7 @@ func main() {
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Bool("version") {
-				fmt.Println("Distributed rate limiter, version:", ratelimiter.GetVersion())
+				fmt.Println("Luna rate limiter, version:", ratelimiter.GetVersion())
 				return nil
 			}
 
@@ -155,6 +155,7 @@ func main() {
 				AllowStartupWithoutRedis: cmd.Bool("redis"),
 				Port:                     cmd.Int("port"),
 				Mode:                     cmd.String("mode"),
+				DefaultAlgorithm:		  cmd.String("algorithm"),
 			}
 
 			if err := ratelimiter.Start(config); err != nil {
