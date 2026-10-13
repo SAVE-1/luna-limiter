@@ -23,7 +23,7 @@ tasks:
   run:
     deps: [build]
     cmds:
-      - ./bin/{{.EXENAME}} --redisaddr {{.REDIS_ADDR}} --redisuser {{.REDIS_USER}} --redispassword {{.REDIS_PASS}} --period {{.PERIOD}} --reqlimit {{.REQ_LIMIT}} --noredisallowed {{.REDIS}} --default_limit_algorithm {{.ALGO}} --port {{.PORT}} --mode {{.MODE}}
+      - ./bin/{{.EXENAME}} --redisaddr {{.REDIS_ADDR}} --redisuser {{.REDIS_USER}} --redispassword {{.REDIS_PASS}} --period {{.PERIOD}} --reqlimit {{.REQ_LIMIT}} --noredisallowed {{.REDIS}} --algorithm {{.ALGO}} --port {{.PORT}} --mode {{.MODE}}
 
   help:
     deps: [build]
