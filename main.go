@@ -89,8 +89,8 @@ func main() {
 				Usage:   "user request limit",
 				Sources: cli.EnvVars("LUNA_REQ_LIMIT"),
 				Validator: func(t int) error {
-					if t < 0 {
-						return fmt.Errorf("Must be positive")
+					if t <= 0 {
+						return fmt.Errorf("Must be greater than zero")
 					}
 					return nil
 				}},
