@@ -75,11 +75,11 @@ func main() {
 			&cli.IntFlag{
 				Name:    "period",
 				Value:   60,
-				Usage:   "user request reset period",
+				Usage:   "user request reset period in seconds",
 				Sources: cli.EnvVars("LUNA_PERIOD"),
 				Validator: func(t int) error {
 					if t < 0 {
-						return fmt.Errorf("Must be positive")
+						return fmt.Errorf("The period must greater than zero")
 					}
 					return nil
 				}},
@@ -90,7 +90,7 @@ func main() {
 				Sources: cli.EnvVars("LUNA_REQ_LIMIT"),
 				Validator: func(t int) error {
 					if t <= 0 {
-						return fmt.Errorf("Must be greater than zero")
+						return fmt.Errorf("User request limit must be greater than zero")
 					}
 					return nil
 				}},
