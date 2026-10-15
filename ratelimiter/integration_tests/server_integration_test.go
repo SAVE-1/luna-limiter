@@ -1,4 +1,4 @@
-package ratelimiter
+package integration_tests
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SAVE-1/distributed-rate-limiter/ratelimiter"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/redis"
@@ -24,7 +25,7 @@ const (
 
 type TestContainers struct {
 	RedisContainer  *redis.RedisContainer
-	TestRateLimiter *RatelimiterHandler
+	TestRateLimiter *ratelimiter.RatelimiterHandler
 }
 
 var testContainers *TestContainers
@@ -88,7 +89,7 @@ func SetupContainersAndRatelimiter(ctx context.Context) (*TestContainers, error)
 		return nil, fmt.Errorf("redis endpoint: %w", err)
 	}
 
-	config := RateLimiterConfiguration{
+	config := ratelimiter.RateLimiterConfiguration{
 		RedisAddress:             endpoint,
 		Period:                   time.Minute,
 		Limit:                    2,
@@ -97,7 +98,7 @@ func SetupContainersAndRatelimiter(ctx context.Context) (*TestContainers, error)
 		Mode:                     "dev",
 	}
 
-	r, err := NewRatelimiter(config)
+	r, err := ratelimiter.NewRatelimiter(config)
 	if err != nil {
 		_ = tc.Cleanup(ctx) // don't leak the container on failure
 		return nil, fmt.Errorf("failed to create Ratelimiter: %w", err)
@@ -123,7 +124,7 @@ func TestTest(t *testing.T) {
 func TestPing(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/v1/ping", nil)
-	testContainers.TestRateLimiter.router.ServeHTTP(w, req)
+	testContainers.TestRateLimiter.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -139,7 +140,7 @@ func TestPing(t *testing.T) {
 func TestHealth(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
-	testContainers.TestRateLimiter.router.ServeHTTP(w, req)
+	testContainers.TestRateLimiter.ServeHTTP(w, req)
 
 	var body map[string]any
 	json.Unmarshal(w.Body.Bytes(), &body)
@@ -173,7 +174,7 @@ func TestRateLimit_MissingFieldsInPayloadJson(t *testing.T) {
 		bytes.NewBufferString(`{"ClientId": "user1" }`))
 	req.Header.Set("Content-Type", "application/json")
 
-	testContainers.TestRateLimiter.router.ServeHTTP(w, req)
+	testContainers.TestRateLimiter.ServeHTTP(w, req)
 	json.Unmarshal(w.Body.Bytes(), &body1)
 
 	if w.Code != http.StatusBadRequest {
@@ -193,7 +194,7 @@ type limitResp struct {
 	Remaining int
 }
 
-func postJSON(t *testing.T, h http.Handler, path, body string) *httptest.ResponseRecorder {
+func postJSON(t *testing.T, h *ratelimiter.RatelimiterHandler, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -212,7 +213,7 @@ func TestRateLimiter_LimitExceeded(t *testing.T) {
 		{Passes: false, HitCount: 3, Remaining: 0},
 	}
 	for i, want := range steps {
-		w := postJSON(t, testContainers.TestRateLimiter.router, "/v1/ratelimit", payload)
+		w := postJSON(t, testContainers.TestRateLimiter, "/v1/ratelimit", payload)
 
 		var got limitResp
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))

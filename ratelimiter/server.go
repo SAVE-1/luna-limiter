@@ -237,6 +237,10 @@ func BuildRouter(h *RatelimiterHandler) *gin.Engine {
 	return router
 }
 
+func (h *RatelimiterHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    h.router.ServeHTTP(w, r)
+}
+
 func NewRatelimiterHandler(logger *zap.Logger, conn internal.RedisConnection, h *HandlerConfig) *RatelimiterHandler {
 	return &RatelimiterHandler{
 		Logger:          logger,
