@@ -119,3 +119,43 @@ func secondsUntilRatelimitReset(userFirstHit int64, window time.Duration) int64 
 	const millisInSecond int64 = 1000
 	return (userFirstHitAsTime.Add(window).UnixMilli() - time.Now().UnixMilli()) / millisInSecond
 }
+
+/* Calculate has enough time passed since user first and last hit
+
+	in: 
+		- user first hit, millis
+		- user latest hit, millis
+		- time range, seconds
+	out: 
+		- has enough time passed, bool
+
+	NOTE: window time.Duration is always assumed to be correct as 
+	      it is assumed to be checked at program start
+*/
+func hasTimePassed(userFirstHit int64, userLastHit int64, window time.Duration) (bool, error) {
+	if userLastHit < userFirstHit {
+		return false, errors.New("user first hit is newer than user last hit")
+	}
+
+	if 0 >= userFirstHit {
+		return false, errors.New(fmt.Sprintf("erroneous timestamp: userFirstHit %d", userFirstHit))
+	}
+
+	if 0 >= userLastHit {
+		return false, errors.New(fmt.Sprintf("erroneous timestamp:  userLastHit: %d", userLastHit))
+	}
+
+	elapsed := time.Duration(userLastHit-userFirstHit) * time.Second
+
+	return elapsed >= window, nil
+}
+
+func (h *RatelimiterHandler) getHasTimePassed(userFirstHit int64, userLastHit int64) bool {
+	ok, err := hasTimePassed(userFirstHit, userLastHit, h.Config.Period)
+
+	if err != nil {
+		h.Logger.Info("error in user hit datums", zap.Error(err))
+	}
+
+	return ok
+}
