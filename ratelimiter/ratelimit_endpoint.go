@@ -1,6 +1,8 @@
 package ratelimiter
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
