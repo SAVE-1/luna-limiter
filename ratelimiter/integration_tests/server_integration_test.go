@@ -220,38 +220,3 @@ func TestRateLimiter_LimitExceeded(t *testing.T) {
 		require.Equal(t, want, got, "request %d", i+1)
 	}
 }
-
-/// DEAD CODE FOR NOW
-// func helperInitForTestContainers(t *testing.T, config RateLimiterConfiguration) *RatelimiterHandler {
-// 	// code from: https://golang.testcontainers.org/quickstart/
-// 	ctx := context.Background()
-// 	portThing := fmt.Sprintf("%d/tcp", REDISPORT)
-// 	fmt.Println("yee 1.", portThing)
-// 	redisC, err := testcontainers.Run(
-// 		ctx, "redis:8-alpine",
-// 		testcontainers.WithExposedPorts(portThing),
-// 		testcontainers.WithWaitStrategy(
-// 			wait.ForListeningPort(portThing),
-// 			wait.ForLog("Ready to accept connections"),
-// 		),
-// 	)
-// 	fmt.Println("yee 2.")
-// 	testcontainers.CleanupContainer(t, redisC)
-// 	require.NoError(t, err)
-
-// 	redisEndpoint, err := redisC.Endpoint(ctx, portThing)
-// 	require.NoError(t, err)
-
-// 	tt := strings.LastIndex(redisEndpoint, ":")
-
-// 	config.RedisAddress = config.RedisAddress + ":" + redisEndpoint[tt+1:]
-
-// 	r, err := NewRatelimiter(config)
-
-// 	if err != nil {
-// 		t.Error("error in myInit()")
-// 		return nil
-// 	}
-
-// 	return r
-// }
