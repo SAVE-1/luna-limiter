@@ -161,6 +161,7 @@ func Start(ratelimiterConfig RateLimiterConfiguration) error {
 	// kill (no params) by default sends syscall.SIGTERM
 	// kill -2 is syscall.SIGINT
 	// kill -9 is syscall.SIGKILL but can't be caught, so don't need add it
+	// SIGINT = Ctrl+C, SIGTERM = Kubernetes
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	logger.Info("Shutdown signal received")
