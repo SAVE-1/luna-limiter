@@ -41,11 +41,6 @@ func (tc *TestContainers) Cleanup(ctx context.Context) error {
 	return nil
 }
 
-// ResetRedis flushes all data from Redis between tests
-// func (tc *TestContainers) ResetRedis(ctx context.Context) error {
-//     return tc.RedisClient.FlushAll(ctx).Err()
-// }
-
 /// https://oneuptime.com/blog/post/2026-01-07-go-integration-tests-testcontainers/view
 func TestMain(m *testing.M) {
 	// Set up the test containers
@@ -82,7 +77,6 @@ func SetupContainersAndRatelimiter(ctx context.Context) (*TestContainers, error)
 	}
 	tc.RedisContainer = redisContainer
 
-	// "host:mappedPort", e.g. 127.0.0.1:55012. No port argument needed.
 	endpoint, err := redisContainer.Endpoint(ctx, "")
 	if err != nil {
 		_ = tc.Cleanup(ctx)
@@ -157,7 +151,6 @@ func TestHealth(t *testing.T) {
 	}
 }
 
-// should be ok, does not reach/use redis related code at any point
 func TestRateLimit_MissingFieldsInPayloadJson(t *testing.T) {
 	/*
 		len() 		 = 						 5
