@@ -26,6 +26,9 @@ The implementation was inspired by backend engineering talks and real-world use 
 
 Redis is used to coordinate rate-limit state across requests, keeping the service stateless from the application perspective.
 
+
+![High level internsl](docs/img/high-level-internals.png "high-level-internals")
+
 # Current Scope
 ## Implemented
 - Core rate-limiting logic
