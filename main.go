@@ -50,30 +50,43 @@ VARIABLE PRECEDENCE:
 		command line > environmental > default
 */
 
+const (
+	REDIS_ADDR          string = "redisaddr"
+	REDIS_USER          string = "redisuser"
+	REDIS_PASSWORD      string = "redispassword"
+	PERIOD              string = "period"
+	REQLIMIT            string = "reqlimit"
+	START_WITHOUT_REDIS string = "start_without_redis"
+	VERSION             string = "version"
+	ALGORITHM           string = "algorithm"
+	PORT                string = "port"
+	MODE                string = "mode"
+)
+
 func main() {
 	cmd := &cli.Command{
 		UseShortOptionHandling: true,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:    "redisaddr",
+				Name:    REDIS_ADDR,
 				Value:   "",
 				Usage:   "redis ip address",
 				Sources: cli.EnvVars("LUNA_REDIS_ADDR"),
 			},
 			&cli.StringFlag{
-				Name:    "redisuser",
+				Name:    REDIS_USER,
 				Value:   "",
 				Usage:   "redis user name",
 				Sources: cli.EnvVars("LUNA_REDIS_USER"),
 			},
 			&cli.StringFlag{
-				Name:    "redispassword",
+				Name:    REDIS_PASSWORD,
 				Value:   "",
 				Usage:   "redis user password",
 				Sources: cli.EnvVars("LUNA_REDIS_PASSWORD"),
 			},
 			&cli.IntFlag{
-				Name:    "period",
+				Name:    PERIOD,
 				Value:   60,
 				Usage:   "user request reset period in seconds",
 				Sources: cli.EnvVars("LUNA_PERIOD"),
@@ -84,7 +97,7 @@ func main() {
 					return nil
 				}},
 			&cli.IntFlag{
-				Name:    "reqlimit",
+				Name:    REQLIMIT,
 				Value:   2,
 				Usage:   "user request limit",
 				Sources: cli.EnvVars("LUNA_REQ_LIMIT"),
@@ -95,19 +108,19 @@ func main() {
 					return nil
 				}},
 			&cli.BoolFlag{
-				Name:    "noredisallowed",
+				Name:    START_WITHOUT_REDIS,
 				Value:   false,
 				Usage:   "is startup without Redis allowed",
-				Sources: cli.EnvVars("LUNA_NO_REDIS_ALLOWED"),
+				Sources: cli.EnvVars("LUNA_START_WITHOUT_REDIS"),
 			},
 			&cli.BoolFlag{
-				Name:    "version",
+				Name:    VERSION,
 				Value:   false,
 				Aliases: []string{"V", "v"},
 				Usage:   "server version",
 			},
 			&cli.StringFlag{
-				Name:    "algorithm",
+				Name:    ALGORITHM,
 				Value:   "fixed_window",
 				Usage:   "what the default algorithm is used",
 				Sources: cli.EnvVars("LUNA_ALGORITHM"),
@@ -118,13 +131,13 @@ func main() {
 					return fmt.Errorf("Wrong algorithm in environment variables")
 				}},
 			&cli.IntFlag{
-				Name:    "port",
+				Name:    PORT,
 				Value:   12600,
 				Usage:   "what port should be used",
 				Sources: cli.EnvVars("LUNA_PORT", "LUNA_RATELIMITER_PORT"),
 			},
 			&cli.StringFlag{
-				Name:    "mode",
+				Name:    MODE,
 				Value:   "dev",
 				Usage:   "what release mode should be used for logging",
 				Sources: cli.EnvVars("LUNA_RELEASE_MODE"),
@@ -136,26 +149,26 @@ func main() {
 				}},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			if cmd.Bool("version") {
+			if cmd.Bool(VERSION) {
 				fmt.Println("Luna rate limiter, version:", ratelimiter.GetVersion())
 				return nil
 			}
 
-			seconds, err := time.ParseDuration(strconv.Itoa(int(cmd.Int("period"))) + "s")
+			seconds, err := time.ParseDuration(strconv.Itoa(int(cmd.Int(PERIOD))) + "s")
 			if err != nil {
 				return err
 			}
 
 			config := ratelimiter.RateLimiterConfiguration{
-				RedisAddress:             cmd.String("redisaddr"),
-				RedisUsername:            cmd.String("redisuser"),
-				RedisPassword:            cmd.String("redispassword"),
+				RedisAddress:             cmd.String(REDIS_ADDR),
+				RedisUsername:            cmd.String(REDIS_USER),
+				RedisPassword:            cmd.String(REDIS_PASSWORD),
 				Period:                   seconds,
-				Limit:                    int64(cmd.Int("reqlimit")),
-				AllowStartupWithoutRedis: cmd.Bool("redis"),
-				Port:                     cmd.Int("port"),
-				Mode:                     cmd.String("mode"),
-				DefaultAlgorithm:		  cmd.String("algorithm"),
+				Limit:                    int64(cmd.Int(REQLIMIT)),
+				AllowStartupWithoutRedis: cmd.Bool(START_WITHOUT_REDIS),
+				Port:                     cmd.Int(PORT),
+				Mode:                     cmd.String(MODE),
+				DefaultAlgorithm:         cmd.String(ALGORITHM),
 			}
 
 			if err := ratelimiter.Start(config); err != nil {
