@@ -11,3 +11,9 @@
 
 # 30-10-2026
 - [✓] Pin down Redis version -- priority
+- [ ] Change: redis.NewScript runs on every call, and gets hashed each time. Build each script once as a package-level variable, and have the factory return those.
+- [ ] Add: sliding window algo
+- [ ] Make: the rules configurable through files, such as: {name, algorithm, limit, period, key_by}, and load at startup
+
+# 02-11-2026
+- [ ] Change: func ratelimitAlgorithmFactory to return pre-compiled (not sure if this is the right term) objects, instead of doing it every time
