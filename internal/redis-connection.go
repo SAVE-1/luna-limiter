@@ -142,7 +142,6 @@ func ratelimitAlgorithmFactory(algo string) *redis.Script {
 // https://github.com/go-redis/redis_rate/blob/v9/rate.go
 // https://github.com/go-redis/redis_rate/blob/v9/lua.go
 
-var tokenBucket = redis.NewScript(ScriptFixedWindow)
 
 const entryCost = int64(unsafe.Sizeof(RedisEntry{}))
 func (h *RedisConnection) GetRedisEntryCostFunction() func(RedisEntry) int64 {
