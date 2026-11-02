@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	version = "0.5"
+	version = "0.7"
 )
 
 func GetVersion() string {
