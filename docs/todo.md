@@ -16,4 +16,7 @@
 - [ ] Make: the rules configurable through files, such as: {name, algorithm, limit, period, key_by}, and load at startup
 
 # 02-11-2026
-- [ ] Change: func ratelimitAlgorithmFactory to return pre-compiled (not sure if this is the right term) objects, instead of doing it every time
+- [✓] Change: func ratelimitAlgorithmFactory to return pre-compiled (not sure if this is the right term) objects, instead of doing it every time
+
+# 05-11-2026
+- [] Add: pre-loading the scripts to server(s). I'm going to implement this once I get more shards, so each has a set request speed, now the first request should be a tiny bit slower than the rest.
