@@ -53,21 +53,41 @@ func (i RedisResponse) String() string {
 	return b.String()
 }
 
+type RedisLuaScripts struct {
+	FixedWindow *redis.Script
+}
+
+func (t *RedisLuaScripts) ratelimitAlgorithmFactory(algo string) *redis.Script {
+	switch algo {
+	case "fixed_window":
+		return t.FixedWindow
+	default:
+		// add error, rather than this
+		return t.FixedWindow
+	}
+}
+
 type RedisConnection struct {
 	Address     string
 	Username    string
 	Password    string
 	Logger      *zap.Logger
 	RedisClient *redis.Client
+	/* TBH, I'm not entirely sure if this is the right way to about this, 
+		but at least now they (Lua-scripts) should be pre-generated.  */
+	LuaScripts  RedisLuaScripts
 }
 
 func NewRedisConnection(address, username, password string, logger *zap.Logger) *RedisConnection {
+	var scriptRepo RedisLuaScripts = RedisLuaScripts{FixedWindow: redis.NewScript(ScriptFixedWindow)}
+
 	return &RedisConnection{
 		Address:     address,
 		Username:    username,
 		Password:    password,
 		Logger:      logger,
 		RedisClient: nil,
+		LuaScripts:  scriptRepo,
 	}
 }
 
@@ -95,7 +115,7 @@ func (h *RedisConnection) ProcessRatelimitRequest(hashName string, period int, l
 
 	var e RedisResponse
 
-	algorithm := ratelimitAlgorithmFactory(algo)
+	algorithm := h.LuaScripts.ratelimitAlgorithmFactory(algo)
 
 	t, err := algorithm.Run(ctx, h.RedisClient, []string{hashName}, values...).Result()
 	
