@@ -106,11 +106,11 @@ func (i RedisEntry) String() string {
 
 func (h *RedisConnection) ProcessRatelimitRequest(hashName string, period int, limit int, algo string) (RedisResponse, error) {
 	if h.RedisClient == nil {
-        h.Logger.Error("ERROR: RedisClient is NIL!")
-        return RedisResponse{}, errors.New("redis client not initialized")
-    }
+		h.Logger.Error("ERROR: RedisClient is NIL!")
+		return RedisResponse{}, errors.New("redis client not initialized")
+	}
 	ctx := context.Background()
-		
+
 	values := []interface{}{period, limit}
 
 	var e RedisResponse
@@ -118,7 +118,7 @@ func (h *RedisConnection) ProcessRatelimitRequest(hashName string, period int, l
 	algorithm := h.LuaScripts.ratelimitAlgorithmFactory(algo)
 
 	t, err := algorithm.Run(ctx, h.RedisClient, []string{hashName}, values...).Result()
-	
+
 	if err != nil {
 		h.Logger.Error("error with redis")
 		return RedisResponse{}, err
@@ -155,7 +155,7 @@ func (h *RedisConnection) ProcessRatelimitRequest(hashName string, period int, l
 
 const entryCost = int64(unsafe.Sizeof(RedisEntry{}))
 func (h *RedisConnection) GetRedisEntryCostFunction() func(RedisEntry) int64 {
-    return func(RedisEntry) int64 { return entryCost }
+	return func(RedisEntry) int64 { return entryCost }
 }
 
 func (h *RedisConnection) HIncrBy(ctx context.Context, key string, field string, count int64) error {
@@ -182,9 +182,9 @@ func OpenRedisConnection(r *RedisConnection) (*redis.Client, error) {
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	
+
 	_, err := redisClient.Ping(ctx).Result() // *net.OpError
-	
+
 	if err != nil {
 		return nil, err
 	}
