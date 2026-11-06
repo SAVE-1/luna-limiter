@@ -149,19 +149,9 @@ func (h *RedisConnection) ProcessRatelimitRequest(hashName string, period int, l
 	return e, nil
 }
 
-func ratelimitAlgorithmFactory(algo string) *redis.Script {
-	switch algo {
-	case "fixed_window":
-		return redis.NewScript(ScriptFixedWindow)
-	default:
-		return redis.NewScript(ScriptFixedWindow)
-	}
-}
-
 // https://redis.uptrace.dev/guide/lua-scripting.html#redis-script
 // https://github.com/go-redis/redis_rate/blob/v9/rate.go
 // https://github.com/go-redis/redis_rate/blob/v9/lua.go
-
 
 const entryCost = int64(unsafe.Sizeof(RedisEntry{}))
 func (h *RedisConnection) GetRedisEntryCostFunction() func(RedisEntry) int64 {
