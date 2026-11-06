@@ -12,7 +12,7 @@ vars:
   REDIS: false
   ALGO: fixed_window
   PORT: 12600
-  MODE: "dev"
+  LOG_FORMAT: "dev"
 
 tasks:
   build:
@@ -23,7 +23,7 @@ tasks:
   run:
     deps: [build]
     cmds:
-      - ./bin/{{.EXENAME}} --redisaddr {{.REDIS_ADDR}} --redisuser {{.REDIS_USER}} --redispassword {{.REDIS_PASS}} --period {{.PERIOD}} --reqlimit {{.REQ_LIMIT}} --start_without_redis {{.REDIS}} --algorithm {{.ALGO}} --port {{.PORT}} --mode {{.MODE}}
+      - ./bin/{{.EXENAME}} --redisaddr {{.REDIS_ADDR}} --redisuser {{.REDIS_USER}} --redispassword {{.REDIS_PASS}} --period {{.PERIOD}} --reqlimit {{.REQ_LIMIT}} --start_without_redis {{.REDIS}} --algorithm {{.ALGO}} --port {{.PORT}} --log_format {{.LOG_FORMAT}}
 
   help:
     deps: [build]
