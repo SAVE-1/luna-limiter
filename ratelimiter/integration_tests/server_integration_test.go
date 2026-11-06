@@ -89,7 +89,7 @@ func SetupContainersAndRatelimiter(ctx context.Context) (*TestContainers, error)
 		Limit:                    2,
 		AllowStartupWithoutRedis: false,
 		Port:                     12600,
-		Mode:                     "dev",
+		LogFormat:                     "dev",
 	}
 
 	r, err := ratelimiter.NewRatelimiter(config)

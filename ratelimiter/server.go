@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-micro.dev/v5/logger"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -41,35 +42,41 @@ type RateLimiterConfiguration struct {
 	AllowStartupWithoutRedis bool
 	DefaultAlgorithm         string
 	Port                     int
-	Mode                     string
+	LogFormat                string
 }
 
-func NewRatelimiter(ratelimiterConfig RateLimiterConfiguration) (*RatelimiterHandler, error) {
-	var config zap.Config
+func newLogger(c *RateLimiterConfiguration) (*zap.Logger, error) {
+	var config zap.Config = zap.Config{
+		OutputPaths:      []string{"stdout", "rate-limiter.log"},
+		ErrorOutputPaths: []string{"stdout", "stderr", "rate-limiter.log"},
+	}
 
-	if ratelimiterConfig.Mode == Development {
-		config = zap.Config{
-			Level:            zap.NewAtomicLevelAt(zap.DebugLevel),
-			Development:      true,
-			Encoding:         "json",
-			EncoderConfig:    zap.NewDevelopmentEncoderConfig(),
-			OutputPaths:      []string{"stdout", "rate-limiter.log"},
-			ErrorOutputPaths: []string{"stdout", "stderr", "rate-limiter.log"},
-		}
-	} else if ratelimiterConfig.Mode == Production {
-		config = zap.Config{
-			Level:            zap.NewAtomicLevelAt(zap.InfoLevel),
-			Development:      false,
-			Encoding:         "json",
-			EncoderConfig:    zap.NewProductionEncoderConfig(),
-			OutputPaths:      []string{"stdout", "rate-limiter.log"},
-			ErrorOutputPaths: []string{"stdout", "stderr", "rate-limiter.log"},
-		}
+	if c.LogFormat == Development {
+		// NewJSONEncoder() outputs in JSON format, NewConsoleEncoder() outputs in plain text format
+		encoderConfig := zap.NewDevelopmentEncoderConfig()
+		// Display different colors according to levels. If not needed, use zapcore.CapitalLevelEncoder.
+		encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+
+		config.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+		config.Development = true
+		config.EncoderConfig = encoderConfig
+		config.Encoding = "console"
+	} else if c.LogFormat == Production {
+		config.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+		config.Development = false
+		config.EncoderConfig = zap.NewProductionEncoderConfig()
+		config.Encoding = "json"
 	} else {
-		return nil, fmt.Errorf("invalid mode %q: must be %q or %q", ratelimiterConfig.Mode, Development, Production)
+		return nil, fmt.Errorf("invalid mode '%q': must be '%q' or '%q'", c.LogFormat, Development, Production)
 	}
 
 	logger, err := config.Build()
+
+	return logger, err
+}
+
+func NewRatelimiter(ratelimiterConfig RateLimiterConfiguration) (*RatelimiterHandler, error) {
+	logger, err := newLogger(&ratelimiterConfig)
 	if err != nil {
 		panic(err)
 	}
@@ -223,7 +230,7 @@ type RatelimiterHandler struct {
 	ristrettoCache  *ristretto.Cache[string, internal.RedisEntry]
 	Config          *HandlerConfig
 	router          *gin.Engine
-	httpThingy		*http.Server
+	httpThingy      *http.Server
 }
 
 func BuildRouter(h *RatelimiterHandler) *gin.Engine {
@@ -239,7 +246,7 @@ func BuildRouter(h *RatelimiterHandler) *gin.Engine {
 }
 
 func (h *RatelimiterHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-    h.router.ServeHTTP(w, r)
+	h.router.ServeHTTP(w, r)
 }
 
 func NewRatelimiterHandler(logger *zap.Logger, conn internal.RedisConnection, h *HandlerConfig) *RatelimiterHandler {
@@ -251,10 +258,10 @@ func NewRatelimiterHandler(logger *zap.Logger, conn internal.RedisConnection, h 
 }
 
 func (h *RatelimiterHandler) getFromCache(key string) (internal.RedisEntry, bool) {
-  	value, found := h.ristrettoCache.Get(key)
-  	if !found {
-  	  return internal.RedisEntry{}, false
-  	}
+	value, found := h.ristrettoCache.Get(key)
+	if !found {
+		return internal.RedisEntry{}, false
+	}
 
 	return value, true
 }

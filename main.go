@@ -60,7 +60,7 @@ const (
 	VERSION             string = "version"
 	ALGORITHM           string = "algorithm"
 	PORT                string = "port"
-	MODE                string = "mode"
+	MODE                string = "log_format"
 )
 
 func main() {
@@ -138,7 +138,7 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:    MODE,
-				Value:   "dev",
+				Value:   "log_format",
 				Usage:   "what release mode should be used for logging",
 				Sources: cli.EnvVars("LUNA_RELEASE_MODE"),
 				Validator: func(m string) error {
@@ -167,7 +167,7 @@ func main() {
 				Limit:                    int64(cmd.Int(REQLIMIT)),
 				AllowStartupWithoutRedis: cmd.Bool(START_WITHOUT_REDIS),
 				Port:                     cmd.Int(PORT),
-				Mode:                     cmd.String(MODE),
+				LogFormat:                     cmd.String(MODE),
 				DefaultAlgorithm:         cmd.String(ALGORITHM),
 			}
 
