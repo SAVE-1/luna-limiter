@@ -78,7 +78,7 @@ func newLogger(c *RateLimiterConfiguration) (*zap.Logger, error) {
 func NewRatelimiter(ratelimiterConfig RateLimiterConfiguration) (*RatelimiterHandler, error) {
 	logger, err := newLogger(&ratelimiterConfig)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	defer logger.Sync()

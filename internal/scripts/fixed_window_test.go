@@ -117,7 +117,7 @@ func TestTest(t *testing.T) {
 	err := my_redis_client.Set(ctx, "foo", "bar", 0).Err()
 
 	if err != nil {
-	    panic(err)
+	    t.Fatalf("%v", err)
 	}
 
 	val, err := my_redis_client.Get(ctx, "foo").Result()
