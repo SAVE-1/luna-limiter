@@ -28,6 +28,9 @@ Redis is used to coordinate rate-limit state across requests (since every reques
 
 ![High level internsl](docs/img/high-level-internals.png "high-level-internals")
 
+## Future implementation
+![Future implementation](docs/img/future-architecture.png "future-implementation")
+
 # Current Scope
 ## Implemented
 - Core rate-limiting logic
