@@ -3,6 +3,7 @@
 version: '3'
 
 vars:
+# vars for compilation; TODO: make injectable
   EXENAME: distributed-rate-limiter.exe
   REDIS_ADDR: 127.0.0.1:6379
   REDIS_USER: default
@@ -13,6 +14,11 @@ vars:
   ALGO: fixed_window
   PORT: 12600
   LOG_FORMAT: "dev"
+
+# vars for debugger
+  INSTANCE_NAME: distributed-rate-limiter
+  FIXED_WINDOW_FILE: fixed_window.lua
+  KEY: ratelimit:abc-123:fixed_window
 
 tasks:
   build:
@@ -30,6 +36,10 @@ tasks:
     cmds:
       - ./bin/{{.EXENAME}} help
 
+  test:
+    cmds:
+      - go test ./...
+
   test-all:
     cmds:
       - go test -tags=all ./...
@@ -41,5 +51,20 @@ tasks:
 
 # UTILITY
   loc:
+    desc: Counts LoCs in the project
     cmds:
       - cloc . --exclude-dir=.git,temp
+
+  debug-fixed_window-cmd:
+    desc: Test fixed window Lua-script with cmd arguments
+    interactive: true
+    cmds:
+      - docker cp internal/scripts/{{.FIXED_WINDOW_FILE}} {{.INSTANCE_NAME}}:/tmp/{{.FIXED_WINDOW_FILE}}
+      - docker exec -it -e REDISCLI_AUTH={{.REDIS_PASS}} {{.INSTANCE_NAME}} redis-cli --ldb --eval /tmp/{{.FIXED_WINDOW_FILE}} {{.KEY}} , {{.ARGS}}
+
+  debug-fixed_window:
+    desc: Test fixed window Lua-script with fixed arguments
+    interactive: true
+    cmds:
+      - docker cp internal/scripts/{{.FIXED_WINDOW_FILE}} {{.INSTANCE_NAME}}:/tmp/{{.FIXED_WINDOW_FILE}}
+      - docker exec -it -e REDISCLI_AUTH={{.REDIS_PASS}} {{.INSTANCE_NAME}} redis-cli --ldb --eval /tmp/{{.FIXED_WINDOW_FILE}} {{.KEY}} , {{.PERIOD}} {{.REQ_LIMIT}}
